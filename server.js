@@ -5,18 +5,17 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Your OpenAI API Key must be set as environment variable in Railway
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+// Hugging Face API Key
+const HF_API_KEY = process.env.HF_API_KEY; // You will set it in Railway
 
-if (!OPENAI_API_KEY) {
-    console.error("ERROR: OPENAI_API_KEY not set!");
+if (!HF_API_KEY) {
+    console.error("ERROR: HF_API_KEY not set!");
     process.exit(1);
 }
 
 app.use(cors());
 app.use(express.json());
 
-// Endpoint to handle AI chatting
 app.post('/ask', async (req, res) => {
     const { prompt } = req.body;
 
@@ -26,34 +25,29 @@ app.post('/ask', async (req, res) => {
 
     try {
         const response = await axios.post(
-            'https://api.openai.com/v1/chat/completions',
-            {
-                model: "gpt-3.5-turbo",
-                messages: [{ role: "user", content: prompt }],
-                max_tokens: 500,
-                temperature: 0.7
-            },
+            'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill',
+            { inputs: prompt },
             {
                 headers: {
-                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                    'Authorization': `Bearer ${HF_API_KEY}`,
                     'Content-Type': 'application/json'
                 }
             }
         );
 
-        const reply = response.data.choices[0].message.content;
-        res.status(200).json({ reply });
+        const aiReply = response.data.generated_text || "Nova couldn't understand.";
+        res.status(200).json({ reply: aiReply });
+
     } catch (error) {
-        console.error('OpenAI Error:', error.response ? error.response.data : error.message);
+        console.error('Hugging Face Error:', error.response ? error.response.data : error.message);
         res.status(500).json({ error: 'Failed to get AI response' });
     }
 });
 
 app.get('/', (req, res) => {
-    res.send('Nova AI Assistant Backend is running!');
+    res.send('Nova AI Assistant using Hugging Face!');
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is running at http://localhost:${PORT}`);
+    console.log(`Server running at http://localhost:${PORT}`);
 });
-
