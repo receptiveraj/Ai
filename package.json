@@ -1,7 +1,7 @@
 {
   "name": "nova-ai-backend",
-  "version": "1.0.0",
-  "description": "Backend for Nova AI Assistant",
+  "version": "2.0.0",
+  "description": "Nova AI Assistant using Hugging Face",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
