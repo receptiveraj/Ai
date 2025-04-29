@@ -6,7 +6,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Hugging Face API Key
-const HF_API_KEY = process.env.HF_API_KEY; // You will set it in Railway
+const HF_API_KEY = process.env.HF_API_KEY;
 
 if (!HF_API_KEY) {
     console.error("ERROR: HF_API_KEY not set!");
@@ -25,7 +25,7 @@ app.post('/ask', async (req, res) => {
 
     try {
         const response = await axios.post(
-            'https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill',
+            'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium',
             { inputs: prompt },
             {
                 headers: {
@@ -45,7 +45,7 @@ app.post('/ask', async (req, res) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('Nova AI Assistant using Hugging Face!');
+    res.send('Nova AI Assistant (DialoGPT powered) is running!');
 });
 
 app.listen(PORT, () => {
