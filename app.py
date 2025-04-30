@@ -4,13 +4,12 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# In-memory "database" simulation
+# In-memory user store (for demo)
 users = {}
-students = []
 
-@app.route("/", methods=["GET"])
+@app.route("/")
 def home():
-    return "SmartEdu CRM Backend is running!"
+    return "School CRM Backend is running!"
 
 @app.route("/signup", methods=["POST"])
 def signup():
@@ -19,13 +18,13 @@ def signup():
     password = data.get("password")
 
     if not username or not password:
-        return jsonify({"success": False, "message": "Username and password are required."}), 400
+        return jsonify({"status": "error", "message": "Username and password are required"}), 400
 
     if username in users:
-        return jsonify({"success": False, "message": "Username already exists."}), 409
+        return jsonify({"status": "error", "message": "User already exists"}), 409
 
     users[username] = password
-    return jsonify({"success": True, "message": "Signup successful."})
+    return jsonify({"status": "success", "message": "Signup successful"}), 201
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -33,19 +32,13 @@ def login():
     username = data.get("username")
     password = data.get("password")
 
+    if not username or not password:
+        return jsonify({"status": "error", "message": "Username and password are required"}), 400
+
     if users.get(username) == password:
-        return jsonify({"success": True, "message": "Login successful."})
-    return jsonify({"success": False, "message": "Invalid credentials."}), 401
-
-@app.route("/students", methods=["POST"])
-def add_student():
-    data = request.get_json()
-    students.append(data)
-    return jsonify({"success": True, "message": "Student added successfully."})
-
-@app.route("/students", methods=["GET"])
-def get_students():
-    return jsonify(students)
+        return jsonify({"status": "success", "message": "Login successful"}), 200
+    else:
+        return jsonify({"status": "error", "message": "Invalid credentials"}), 401
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True, host="0.0.0.0", port=8080)
