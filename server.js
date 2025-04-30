@@ -1,53 +1,111 @@
-const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
+// Handle login
+const loginForm = document.getElementById('loginForm');
+const errorMsg = document.getElementById('errorMsg');
+loginForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
 
-// Hugging Face API Key
-const HF_API_KEY = process.env.HF_API_KEY;
+  const response = await fetch('http://localhost:5000/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
 
-if (!HF_API_KEY) {
-    console.error("ERROR: HF_API_KEY not set!");
-    process.exit(1);
+  const data = await response.json();
+
+  if (data.success) {
+    document.getElementById('loginApp').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadStudents();
+  } else {
+    errorMsg.textContent = data.message;
+  }
+});
+
+// Handle signup
+const signupForm = document.getElementById('signupForm');
+const signupMsg = document.getElementById('signupMsg');
+signupForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  const username = document.getElementById('signupUsername').value;
+  const password = document.getElementById('signupPassword').value;
+
+  const response = await fetch('http://localhost:5000/signup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+
+  const data = await response.json();
+
+  signupMsg.textContent = data.message;
+  if (data.success) {
+    signupForm.reset();
+  }
+});
+
+// Handle adding a student
+const studentForm = document.getElementById('studentForm');
+studentForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  const name = document.getElementById('name').value;
+  const subject = document.getElementById('subject').value;
+  const feePaid = document.getElementById('feePaid').value;
+  const feeTotal = document.getElementById('feeTotal').value;
+
+  const response = await fetch('http://localhost:5000/students', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, subject, feePaid, feeTotal }),
+  });
+
+  const data = await response.json();
+
+  if (data.success) {
+    loadStudents();
+    studentForm.reset();
+  }
+});
+
+// Load students list
+async function loadStudents() {
+  const response = await fetch('http://localhost:5000/students');
+  const students = await response.json();
+
+  const studentListDiv = document.getElementById('studentList');
+  studentListDiv.innerHTML = '';
+
+  students.forEach((student) => {
+    const studentDiv = document.createElement('div');
+    studentDiv.innerHTML = `<strong>${student.name}</strong> - ${student.subject} - Fee Paid: ${student.feePaid} / ${student.feeTotal}`;
+    studentListDiv.appendChild(studentDiv);
+  });
 }
 
-app.use(cors());
-app.use(express.json());
+// Generate PDF
+function generatePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
 
-app.post('/ask', async (req, res) => {
-    const { prompt } = req.body;
+  doc.text('Fee Report', 20, 20);
+  let y = 30;
+  const studentList = document.getElementById('studentList').children;
 
-    if (!prompt) {
-        return res.status(400).json({ error: 'Prompt is required' });
-    }
+  Array.from(studentList).forEach((studentDiv) => {
+    const text = studentDiv.innerText;
+    doc.text(text, 20, y);
+    y += 10;
+  });
 
-    try {
-        const response = await axios.post(
-            'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium',
-            { inputs: prompt },
-            {
-                headers: {
-                    'Authorization': `Bearer ${HF_API_KEY}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
+  doc.save('fee_report.pdf');
+}
 
-        const aiReply = response.data.generated_text || "Nova couldn't understand.";
-        res.status(200).json({ reply: aiReply });
-
-    } catch (error) {
-        console.error('Hugging Face Error:', error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'Failed to get AI response' });
-    }
-});
-
-app.get('/', (req, res) => {
-    res.send('Nova AI Assistant using DialoGPT is running!');
-});
-
-app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-});
+// Logout function
+function logout() {
+  document.getElementById('loginApp').style.display = 'block';
+  document.getElementById('app').style.display = 'none';
+}
