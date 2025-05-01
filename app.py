@@ -1,43 +1,53 @@
 from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
+import sqlite3
+import os
 
 app = Flask(__name__)
 CORS(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+DB_NAME = 'users.db'
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
+def init_db():
+    if os.path.exists(DB_NAME):
+        os.remove(DB_NAME)  # Reset database
 
-with app.app_context():
-    db.create_all()
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+    ''')
+    # Insert test user
+    test_username = 'testuser'
+    test_password = generate_password_hash('test123')
+    cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (test_username, test_password))
+    conn.commit()
+    conn.close()
 
-@app.route('/')
-def home():
-    return "Backend is running!"
+init_db()
 
 @app.route('/signup', methods=['POST'])
 def signup():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
+    hashed = generate_password_hash(password)
 
-    if not username or not password:
-        return jsonify({'message': 'Missing username or password'}), 400
-
-    if User.query.filter_by(username=username).first():
-        return jsonify({'message': 'Username already exists'}), 409
-
-    new_user = User(username=username, password=password)
-    db.session.add(new_user)
-    db.session.commit()
-
-    return jsonify({'message': 'Signup successful'}), 201
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed))
+        conn.commit()
+        return jsonify({'message': 'Signup successful'}), 200
+    except sqlite3.IntegrityError:
+        return jsonify({'message': 'User already exists'}), 409
+    finally:
+        conn.close()
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -45,11 +55,16 @@ def login():
     username = data.get('username')
     password = data.get('password')
 
-    user = User.query.filter_by(username=username, password=password).first()
-    if user:
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute('SELECT password FROM users WHERE username = ?', (username,))
+    result = cursor.fetchone()
+    conn.close()
+
+    if result and check_password_hash(result[0], password):
         return jsonify({'message': 'Login successful'}), 200
     else:
         return jsonify({'message': 'Invalid credentials'}), 401
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=8080)
